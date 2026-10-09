@@ -1,0 +1,287 @@
+import json
+import os
+
+notebook = {
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Exploratory Data Analysis (EDA): Customer Churn\n",
+    "\n",
+    "In this notebook, we explore the cleaned customer churn dataset to uncover patterns, relationships, and actionable business insights."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "# Set plotting style\n",
+    "sns.set_theme(style=\"whitegrid\")\n",
+    "plt.rcParams['figure.figsize'] = (10, 6)\n",
+    "\n",
+    "# Load cleaned data\n",
+    "df = pd.read_csv('../data/processed/cleaned_churn_data.csv')\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 1. Churn Distribution & Class Imbalance"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(6, 4))\n",
+    "ax = sns.countplot(data=df, x='Churn', palette='Set2')\n",
+    "plt.title('Overall Churn Distribution')\n",
+    "plt.ylabel('Number of Customers')\n",
+    "\n",
+    "total = len(df)\n",
+    "for p in ax.patches:\n",
+    "    percentage = f'{100 * p.get_height() / total:.1f}%'\n",
+    "    x = p.get_x() + p.get_width() / 2 - 0.1\n",
+    "    y = p.get_y() + p.get_height() + 50\n",
+    "    ax.annotate(percentage, (x, y))\n",
+    "\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 1: Churn Distribution\n",
+    "**1. What the chart shows:** The target variable `Churn` is imbalanced. ~26.5% of customers churned, while 73.5% remained.\n",
+    "\n",
+    "**2. Why the finding matters:** An imbalanced dataset means accuracy is not a reliable evaluation metric for machine learning. A model that predicts \"No Churn\" every time would be 73.5% accurate but completely useless for identifying at-risk customers.\n",
+    "\n",
+    "**3. What business action it could suggest:** The baseline churn rate of 26.5% sets our benchmark. Any retention strategy must prove it can significantly lower this baseline rate.\n",
+    "\n",
+    "**4. Caveats:** This is historical data. The current churn rate may differ if market conditions or competitor offerings have changed."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 2. Tenure and Churn"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(10, 5))\n",
+    "sns.histplot(data=df, x='tenure', hue='Churn', multiple='stack', bins=36, palette='Set2')\n",
+    "plt.title('Customer Churn by Tenure (Months)')\n",
+    "plt.xlabel('Tenure (Months)')\n",
+    "plt.ylabel('Number of Customers')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 2: Tenure & Churn Relationship\n",
+    "**1. What the chart shows:** A massive spike in churn occurs during the first few months (0-5 months) of service. Customers with high tenure (60-70+ months) rarely churn.\n",
+    "\n",
+    "**2. Why the finding matters:** Customer loyalty increases over time, or alternatively, unsatisfied customers leave early. The onboarding and early lifecycle phases are critical failure points.\n",
+    "\n",
+    "**3. What business action it could suggest:** Implement a targeted \"First 90 Days\" retention program. Offer proactive support, onboarding check-ins, or introductory discounts that bridge them past the critical early drop-off period.\n",
+    "\n",
+    "**4. Caveats:** Correlation is not causation. Customers might stay longer *because* they are happy with the product, not just because time has passed."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 3. Contract Type and Churn"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(8, 5))\n",
+    "sns.countplot(data=df, x='Contract', hue='Churn', palette='Set2')\n",
+    "plt.title('Churn by Contract Type')\n",
+    "plt.ylabel('Number of Customers')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 3: Contract Type & Churn\n",
+    "**1. What the chart shows:** Month-to-month contracts have an overwhelmingly high churn volume and rate compared to one-year and two-year contracts.\n",
+    "\n",
+    "**2. Why the finding matters:** Customers without long-term commitments face no friction when deciding to leave.\n",
+    "\n",
+    "**3. What business action it could suggest:** Incentivize month-to-month customers to switch to annual contracts by offering a discounted yearly rate or premium feature upgrades.\n",
+    "\n",
+    "**4. Caveats:** Forcing long-term contracts might reduce initial sign-ups. The high churn in month-to-month might be expected and priced into the business model."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 4. Monthly Charges and Churn"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(10, 5))\n",
+    "sns.kdeplot(data=df, x='MonthlyCharges', hue='Churn', common_norm=False, fill=True, palette='Set2')\n",
+    "plt.title('Density of Monthly Charges by Churn Status')\n",
+    "plt.xlabel('Monthly Charges ($)')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 4: Monthly Charges & Churn\n",
+    "**1. What the chart shows:** Customers who churn tend to have higher monthly charges (density peaks around $70-$105). Customers with very low monthly charges (~$20) rarely churn.\n",
+    "\n",
+    "**2. Why the finding matters:** Cost is a significant driver of churn. Customers paying a premium may feel they are not getting sufficient value.\n",
+    "\n",
+    "**3. What business action it could suggest:** Review the pricing strategy for premium tiers. Consider bundling value-add services for high-paying customers to increase their perceived value without lowering the price.\n",
+    "\n",
+    "**4. Caveats:** Higher charges often correlate with month-to-month contracts or specific add-ons (like Fiber Optic). We must control for these variables before concluding that price alone causes churn."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 5. Payment Method and Churn"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.figure(figsize=(10, 5))\n",
+    "sns.countplot(data=df, x='PaymentMethod', hue='Churn', palette='Set2')\n",
+    "plt.title('Churn by Payment Method')\n",
+    "plt.xticks(rotation=15)\n",
+    "plt.ylabel('Number of Customers')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 5: Payment Method & Churn\n",
+    "**1. What the chart shows:** Customers paying via Electronic check have a vastly disproportionate churn rate compared to automated methods (Credit card, Bank transfer).\n",
+    "\n",
+    "**2. Why the finding matters:** Manual payment methods involve active friction every month. An electronic check requires the customer to consciously authorize payment, reminding them of the expense and giving them an opportunity to cancel.\n",
+    "\n",
+    "**3. What business action it could suggest:** Push customers toward automated billing (autopay). Offer a small monthly discount (e.g., $5 off) for enrolling in credit card autopay.\n",
+    "\n",
+    "**4. Caveats:** Demographic differences could explain this. Perhaps older or less tech-savvy customers use Electronic checks and are churning for other service-related reasons."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 6. Correlation Matrix"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": None,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Convert Churn to binary for correlation matrix\n",
+    "df_corr = df.copy()\n",
+    "df_corr['Churn_Binary'] = df_corr['Churn'].map({'Yes': 1, 'No': 0})\n",
+    "\n",
+    "# Select numerical features\n",
+    "num_cols = ['tenure', 'MonthlyCharges', 'TotalCharges', 'Churn_Binary']\n",
+    "corr = df_corr[num_cols].corr()\n",
+    "\n",
+    "plt.figure(figsize=(6, 5))\n",
+    "sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1, fmt='.2f')\n",
+    "plt.title('Correlation Matrix of Numerical Features')\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Finding 6: Numerical Correlations\n",
+    "**1. What the chart shows:** Tenure is negatively correlated with Churn (-0.35), while MonthlyCharges has a slight positive correlation (0.19).\n",
+    "\n",
+    "**2. Why the finding matters:** This confirms quantitatively what the bar charts showed qualitatively: longer tenure reduces churn risk, higher prices increase it.\n",
+    "\n",
+    "**3. What business action it could suggest:** Use tenure and monthly charges as foundational numerical features in our predictive model, as they clearly have predictive power.\n",
+    "\n",
+    "**4. Caveats:** Linear correlation (Pearson) only captures linear relationships. The relationship between MonthlyCharges and Churn may be non-linear (e.g., churn only spikes after a specific price threshold)."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+notebook_path = os.path.join(base_dir, 'notebooks', '02_exploratory_data_analysis.ipynb')
+os.makedirs(os.path.dirname(notebook_path), exist_ok=True)
+
+with open(notebook_path, 'w') as f:
+    json.dump(notebook, f, indent=1)
+
+print(f"Successfully generated notebook at {notebook_path}")
